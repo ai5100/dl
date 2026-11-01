@@ -1,0 +1,271 @@
+import numpy as np
+import pandas as pd
+
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-np.clip(x, -500, 500)))
+
+
+def binary_cross_entropy(y, prediction):
+    prediction = np.clip(prediction, 1e-10, 1 - 1e-10)
+    return -np.mean(y * np.log(prediction) + (1 - y) * np.log(1 - prediction))
+
+
+data = pd.read_csv("/content/dl5 - Sheet1 (1).csv0")
+
+data["Result"] = data["Result"].astype(str).str.extract(r"(\d+)").astype(float)
+
+X = data[["Attendance", "Marks"]].astype(float).values
+Y = data[["Result"]].astype(float).values
+
+X = X / 100
+
+print("========================================")
+print("       DEEP NEURAL NETWORK PASS / FAIL")
+print("========================================")
+
+print("\nDataset loaded successfully")
+print("Number of students:", len(X))
+
+learning_rate = float(input("\nEnter learning rate: "))
+epochs = int(input("Enter number of epochs: "))
+
+print("\nEnter weights for Input -> Hidden Layer 1")
+
+W1 = np.zeros((2, 2))
+
+for i in range(2):
+    for j in range(2):
+        W1[i][j] = float(input(f"W1[{i}][{j}] = "))
+
+print("\nEnter weights for Hidden Layer 1 -> Hidden Layer 2")
+
+W2 = np.zeros((2, 2))
+
+for i in range(2):
+    for j in range(2):
+        W2[i][j] = float(input(f"W2[{i}][{j}] = "))
+
+print("\nEnter weights for Hidden Layer 2 -> Output")
+
+W3 = np.zeros((2, 1))
+
+for i in range(2):
+    W3[i][0] = float(input(f"W3[{i}][0] = "))
+
+print("\nEnter biases")
+
+b1 = np.zeros((1, 2))
+b2 = np.zeros((1, 2))
+b3 = np.zeros((1, 1))
+
+for i in range(2):
+    b1[0][i] = float(input(f"b1[{i}] = "))
+
+for i in range(2):
+    b2[0][i] = float(input(f"b2[{i}] = "))
+
+b3[0][0] = float(input("b3 = "))
+
+initial_W1 = W1.copy()
+initial_W2 = W2.copy()
+initial_W3 = W3.copy()
+
+initial_b1 = b1.copy()
+initial_b2 = b2.copy()
+initial_b3 = b3.copy()
+
+print("\n========================================")
+print("       INITIAL WEIGHTS AND BIASES")
+print("========================================")
+
+print("\nInitial W1:")
+print(W1)
+
+print("\nInitial W2:")
+print(W2)
+
+print("\nInitial W3:")
+print(W3)
+
+print("\nInitial b1:")
+print(b1)
+
+print("\nInitial b2:")
+print(b2)
+
+print("\nInitial b3:")
+print(b3)
+
+print("\n========================================")
+print("          TRAINING STARTED")
+print("========================================")
+
+for epoch in range(1, epochs + 1):
+
+    Z1 = np.dot(X, W1) + b1
+    A1 = sigmoid(Z1)
+
+    Z2 = np.dot(A1, W2) + b2
+    A2 = sigmoid(Z2)
+
+    Z3 = np.dot(A2, W3) + b3
+    prediction = sigmoid(Z3)
+
+    loss = binary_cross_entropy(Y, prediction)
+
+    m = len(X)
+
+    dZ3 = (prediction - Y) / m
+    dW3 = np.dot(A2.T, dZ3)
+    db3 = np.sum(dZ3, axis=0, keepdims=True)
+
+    dA2 = np.dot(dZ3, W3.T)
+    dZ2 = dA2 * A2 * (1 - A2)
+
+    dW2 = np.dot(A1.T, dZ2)
+    db2 = np.sum(dZ2, axis=0, keepdims=True)
+
+    dA1 = np.dot(dZ2, W2.T)
+    dZ1 = dA1 * A1 * (1 - A1)
+
+    dW1 = np.dot(X.T, dZ1)
+    db1 = np.sum(dZ1, axis=0, keepdims=True)
+
+    W1 = W1 - learning_rate * dW1
+    W2 = W2 - learning_rate * dW2
+    W3 = W3 - learning_rate * dW3
+
+    b1 = b1 - learning_rate * db1
+    b2 = b2 - learning_rate * db2
+    b3 = b3 - learning_rate * db3
+
+    predicted_classes = (prediction >= 0.5).astype(int)
+    accuracy = np.mean(predicted_classes == Y) * 100
+
+    if epoch == 1 or epoch == epochs:
+        print(f"Epoch: {epoch:4d} | Loss: {loss:.6f} | Accuracy: {accuracy:.2f}%")
+
+
+Z1 = np.dot(X, W1) + b1
+A1 = sigmoid(Z1)
+
+Z2 = np.dot(A1, W2) + b2
+A2 = sigmoid(Z2)
+
+Z3 = np.dot(A2, W3) + b3
+final_prediction = sigmoid(Z3)
+
+final_cost = binary_cross_entropy(Y, final_prediction)
+
+print("\n========================================")
+print("          TRAINING COMPLETED")
+print("========================================")
+
+print("\nFinal Cost:", round(final_cost, 6))
+
+print("\n========================================")
+print("             FINAL WEIGHTS")
+print("========================================")
+
+print("\nFinal W1:")
+print(np.round(W1, 6))
+
+print("\nFinal W2:")
+print(np.round(W2, 6))
+
+print("\nFinal W3:")
+print(np.round(W3, 6))
+
+print("\nFinal b1:")
+print(np.round(b1, 6))
+
+print("\nFinal b2:")
+print(np.round(b2, 6))
+
+print("\nFinal b3:")
+print(np.round(b3, 6))
+
+print("\n========================================")
+print("           FINAL PREDICTIONS")
+print("========================================")
+
+correct = 0
+
+for i in range(len(X)):
+
+    probability = final_prediction[i][0]
+
+    if probability >= 0.5:
+        result = "PASS"
+        predicted_value = 1
+    else:
+        result = "FAIL"
+        predicted_value = 0
+
+    actual_value = int(Y[i][0])
+
+    if predicted_value == actual_value:
+        correct += 1
+
+    print(
+        "Student", i + 1,
+        "| Probability =", round(probability, 4),
+        "| Actual =", actual_value,
+        "|", result
+    )
+
+accuracy = (correct / len(X)) * 100
+
+print("\nAccuracy:", round(accuracy, 2), "%")
+
+print("\n========================================")
+print("          REAL-TIME PREDICTION")
+print("========================================")
+
+attendance = float(input("\nEnter student attendance percentage: "))
+marks = float(input("Enter student exam marks percentage: "))
+
+student = np.array([[attendance / 100, marks / 100]])
+
+z1 = np.dot(student, W1) + b1
+a1 = sigmoid(z1)
+
+z2 = np.dot(a1, W2) + b2
+a2 = sigmoid(z2)
+
+z3 = np.dot(a2, W3) + b3
+student_prediction = sigmoid(z3)
+
+probability = student_prediction[0][0]
+
+print("\nAttendance:", attendance, "%")
+print("Exam Marks:", marks, "%")
+print("PASS Probability:", round(probability * 100, 2), "%")
+
+if probability >= 0.5:
+    print("FINAL RESULT: PASS")
+else:
+    print("FINAL RESULT: FAIL")
+
+print("\n========================================")
+print("         WEIGHT CHANGE SUMMARY")
+print("========================================")
+
+print("\nChange in W1:")
+print(np.round(W1 - initial_W1, 6))
+
+print("\nChange in W2:")
+print(np.round(W2 - initial_W2, 6))
+
+print("\nChange in W3:")
+print(np.round(W3 - initial_W3, 6))
+
+print("\nChange in b1:")
+print(np.round(b1 - initial_b1, 6))
+
+print("\nChange in b2:")
+print(np.round(b2 - initial_b2, 6))
+
+print("\nChange in b3:")
+print(np.round(b3 - initial_b3, 6))

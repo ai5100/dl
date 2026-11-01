@@ -1,0 +1,634 @@
+time series analysis;
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from sklearn.preprocessing import MinMaxScaler
+
+print("LSTM Time Series Forecasting")
+
+path = input("Enter CSV file path: ")
+
+df = pd.read_csv(path)
+
+print("\nCSV Data:")
+print(df.head())
+
+print("\nAvailable columns:")
+print(list(df.columns))
+
+column = input("\nEnter the value column name: ")
+
+data = df[column].values.astype(float).reshape(-1, 1)
+
+n = len(data)
+
+window = int(
+    input("\nEnter number of previous values for prediction: ")
+)
+
+if window >= n:
+    print("Window size must be smaller than the number of records.")
+    exit()
+
+scaler = MinMaxScaler()
+
+scaled_data = scaler.fit_transform(data)
+
+X = []
+y = []
+
+for i in range(window, n):
+    X.append(
+        scaled_data[i-window:i]
+    )
+    y.append(
+        scaled_data[i]
+    )
+
+X = np.array(X)
+y = np.array(y)
+
+X = X.reshape(
+    X.shape[0],
+    X.shape[1],
+    1
+)
+
+model = Sequential()
+
+model.add(
+    LSTM(
+        64,
+        input_shape=(window, 1)
+    )
+)
+
+model.add(Dense(1))
+
+model.compile(
+    optimizer="adam",
+    loss="mean_squared_error"
+)
+
+epochs = int(
+    input("\nEnter number of epochs: ")
+)
+
+model.fit(
+    X,
+    y,
+    epochs=epochs,
+    verbose=1
+)
+
+print("\nLSTM model trained successfully.")
+
+future_steps = int(
+    input("\nEnter number of future values to forecast: ")
+)
+
+last_values = scaled_data[-window:].copy()
+
+predictions = []
+
+for i in range(future_steps):
+
+    input_data = last_values.reshape(
+        1,
+        window,
+        1
+    )
+
+    prediction = model.predict(
+        input_data,
+        verbose=0
+    )
+
+    predictions.append(
+        prediction[0, 0]
+    )
+
+    last_values = np.append(
+        last_values[1:],
+        prediction[0, 0]
+    )
+
+predictions = np.array(
+    predictions
+).reshape(-1, 1)
+
+predictions = scaler.inverse_transform(
+    predictions
+)
+
+print("\nForecasted Values:")
+
+for i, value in enumerate(
+    predictions,
+    1
+):
+    print(
+        f"Future {i}: {value[0]:.2f}"
+    )
+
+historical_x = np.arange(
+    1,
+    n + 1
+)
+
+forecast_x = np.arange(
+    n + 1,
+    n + future_steps + 1
+)
+
+plt.figure(figsize=(10, 5))
+
+plt.plot(
+    historical_x,
+    data.flatten(),
+    marker="o",
+    label="Historical Data"
+)
+
+plt.plot(
+    forecast_x,
+    predictions.flatten(),
+    marker="o",
+    linestyle="--",
+    label="Forecasted Data"
+)
+
+plt.axvline(
+    x=n,
+    linestyle=":"
+)
+
+plt.xlabel("Time")
+plt.ylabel(column)
+
+plt.title(
+    "LSTM Time Series Forecasting"
+)
+
+plt.legend()
+plt.grid(True)
+
+plt.show()
+
+
+MACHINE TRANSLATION:
+import numpy as np
+import tensorflow as tf
+
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, LSTM, Dense, Embedding
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+print("Machine Translation using LSTM")
+
+print("1. English ↔ Hindi")
+print("2. English ↔ Marathi")
+
+choice = int(input("\nEnter your choice: "))
+
+match choice:
+    case 1:
+        language = "Hindi"
+    case 2:
+        language = "Marathi"
+    case _:
+        print("Invalid choice")
+        exit()
+
+print(f"\nSelected Language Pair: English ↔ {language}")
+
+n = int(input("\nEnter number of training sentence pairs: "))
+
+english = []
+target = []
+
+for i in range(n):
+    print(f"\nPair {i + 1}")
+
+    english.append(
+        input("English: ").lower()
+    )
+
+    target.append(
+        input(f"{language}: ").lower()
+    )
+
+
+def train_model(source, target):
+
+    target = [
+        "<start> " + x + " <end>"
+        for x in target
+    ]
+
+    source_tokenizer = Tokenizer(filters="")
+    target_tokenizer = Tokenizer(filters="")
+
+    source_tokenizer.fit_on_texts(source)
+    target_tokenizer.fit_on_texts(target)
+
+    source_seq = source_tokenizer.texts_to_sequences(source)
+    target_seq = target_tokenizer.texts_to_sequences(target)
+
+    max_source_len = max(
+        len(x) for x in source_seq
+    )
+
+    max_target_len = max(
+        len(x) for x in target_seq
+    )
+
+    encoder_data = pad_sequences(
+        source_seq,
+        maxlen=max_source_len,
+        padding="post"
+    )
+
+    target_data = pad_sequences(
+        target_seq,
+        maxlen=max_target_len,
+        padding="post"
+    )
+
+    decoder_input = target_data[:, :-1]
+    decoder_target = target_data[:, 1:]
+
+    decoder_target = np.expand_dims(
+        decoder_target,
+        -1
+    )
+
+    source_vocab = len(
+        source_tokenizer.word_index
+    ) + 1
+
+    target_vocab = len(
+        target_tokenizer.word_index
+    ) + 1
+
+    latent_dim = 128
+
+    encoder_inputs = Input(
+        shape=(max_source_len,)
+    )
+
+    encoder_embedding = Embedding(
+        source_vocab,
+        latent_dim
+    )(encoder_inputs)
+
+    encoder_lstm = LSTM(
+        latent_dim,
+        return_state=True
+    )
+
+    encoder_output, state_h, state_c = encoder_lstm(
+        encoder_embedding
+    )
+
+    decoder_inputs = Input(
+        shape=(max_target_len - 1,)
+    )
+
+    decoder_embedding_layer = Embedding(
+        target_vocab,
+        latent_dim
+    )
+
+    decoder_embedding = decoder_embedding_layer(
+        decoder_inputs
+    )
+
+    decoder_lstm_layer = LSTM(
+        latent_dim,
+        return_sequences=True,
+        return_state=True
+    )
+
+    decoder_outputs, _, _ = decoder_lstm_layer(
+        decoder_embedding,
+        initial_state=[state_h, state_c]
+    )
+
+    decoder_dense_layer = Dense(
+        target_vocab,
+        activation="softmax"
+    )
+
+    decoder_outputs = decoder_dense_layer(
+        decoder_outputs
+    )
+
+    model = Model(
+        [encoder_inputs, decoder_inputs],
+        decoder_outputs
+    )
+
+    model.compile(
+        optimizer="adam",
+        loss="sparse_categorical_crossentropy",
+        metrics=["accuracy"]
+    )
+
+    epochs = int(
+        input("Enter number of epochs: ")
+    )
+
+    model.fit(
+        [encoder_data, decoder_input],
+        decoder_target,
+        epochs=epochs,
+        verbose=1
+    )
+
+    encoder_model = Model(
+        encoder_inputs,
+        [state_h, state_c]
+    )
+
+    decoder_state_h = Input(
+        shape=(latent_dim,)
+    )
+
+    decoder_state_c = Input(
+        shape=(latent_dim,)
+    )
+
+    decoder_token = Input(
+        shape=(1,)
+    )
+
+    decoder_emb = decoder_embedding_layer(
+        decoder_token
+    )
+
+    decoder_out, h, c = decoder_lstm_layer(
+        decoder_emb,
+        initial_state=[
+            decoder_state_h,
+            decoder_state_c
+        ]
+    )
+
+    decoder_out = decoder_dense_layer(
+        decoder_out
+    )
+
+    decoder_model = Model(
+        [decoder_token,
+         decoder_state_h,
+         decoder_state_c],
+        [decoder_out, h, c]
+    )
+
+    return (
+        encoder_model,
+        decoder_model,
+        source_tokenizer,
+        target_tokenizer,
+        max_source_len,
+        max_target_len
+    )
+
+
+print(f"\nTraining English → {language}")
+
+forward = train_model(
+    english,
+    target
+)
+
+print(f"\nTraining {language} → English")
+
+reverse = train_model(
+    target,
+    english
+)
+
+
+def translate(sentence, data):
+
+    (
+        encoder_model,
+        decoder_model,
+        source_tokenizer,
+        target_tokenizer,
+        max_source_len,
+        max_target_len
+    ) = data
+
+    sequence = source_tokenizer.texts_to_sequences(
+        [sentence.lower()]
+    )
+
+    sequence = pad_sequences(
+        sequence,
+        maxlen=max_source_len,
+        padding="post"
+    )
+
+    states = encoder_model.predict(
+        sequence,
+        verbose=0
+    )
+
+    start_token = target_tokenizer.word_index[
+        "<start>"
+    ]
+
+    end_token = target_tokenizer.word_index[
+        "<end>"
+    ]
+
+    target_token = np.array([
+        [start_token]
+    ])
+
+    reverse_words = {
+        value: key
+        for key, value
+        in target_tokenizer.word_index.items()
+    }
+
+    result = []
+
+    for i in range(max_target_len):
+
+        prediction, h, c = decoder_model.predict(
+            [
+                target_token,
+                states[0],
+                states[1]
+            ],
+            verbose=0
+        )
+
+        token_id = np.argmax(
+            prediction[0, -1, :]
+        )
+
+        if token_id == end_token or token_id == 0:
+            break
+
+        word = reverse_words.get(
+            token_id,
+            ""
+        )
+
+        if word != "<start>":
+            result.append(word)
+
+        target_token = np.array([
+            [token_id]
+        ])
+
+        states = [h, c]
+
+    return " ".join(result)
+
+
+while True:
+
+    print("\n==============================")
+    print("       TRANSLATION MENU")
+    print("==============================")
+
+    print(f"1. English → {language}")
+    print(f"2. {language} → English")
+    print("3. Exit")
+
+    choice = int(
+        input("\nEnter choice: ")
+    )
+
+    if choice == 1:
+
+        sentence = input(
+            "\nEnter English sentence: "
+        )
+
+        print(
+            f"{language} Translation:",
+            translate(sentence, forward)
+        )
+
+    elif choice == 2:
+
+        sentence = input(
+            f"\nEnter {language} sentence: "
+        )
+
+        print(
+            "English Translation:",
+            translate(sentence, reverse)
+        )
+
+    elif choice == 3:
+        print("Program stopped.")
+        break
+
+    else:
+        print("Invalid choice")
+
+
+HANDWRITTEN:
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.datasets import mnist
+from google.colab import files
+import cv2
+
+# 1. Load and Preprocess MNIST Dataset
+print("Loading MNIST dataset...")
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+# Scale pixel values to [0, 1]
+X_train = X_train.astype('float32') / 255.0
+X_test = X_test.astype('float32') / 255.0
+
+# Dimensions of the input: (batch_size, timesteps, input_dim)
+timesteps = 28
+input_dim = 28
+
+print(f"Training data shape: {X_train.shape}")
+print(f"Test data shape: {X_test.shape}")
+# 2. Build the LSTM Model
+model = Sequential([
+    LSTM(128, input_shape=(timesteps, input_dim), return_sequences=True),
+    Dropout(0.2),
+    LSTM(128),
+    Dropout(0.2),
+    Dense(64, activation='relu'),
+    Dense(10, activation='softmax')
+])
+
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+model.summary()
+# 3. Train the Model
+epochs = 5
+batch_size = 64
+
+history = model.fit(
+    X_train, y_train,
+    epochs=epochs,
+    batch_size=batch_size,
+    validation_data=(X_test, y_test),
+    verbose=1
+)
+
+# Evaluate model performance
+test_loss, test_acc = model.evaluate(X_test, y_test, verbose=0)
+print(f"\nTest Accuracy: {test_acc:.4f}")
+# 4. Test User Uploaded Image
+print("Please upload a square image of a single handwritten digit:")
+uploaded = files.upload()
+
+if len(uploaded) > 0:
+    file_name = list(uploaded.keys())[0]
+
+    # Read the image in grayscale
+    img = cv2.imread(file_name, cv2.IMREAD_GRAYSCALE)
+
+    # Resize image to match MNIST (28x28)
+    img_resized = cv2.resize(img, (28, 28))
+
+    # Invert the image if it has a light background with dark ink
+    # MNIST has light pixels on a dark background
+    if np.mean(img_resized) > 127:
+        img_resized = cv2.bitwise_not(img_resized)
+
+    # Normalize pixel values
+    img_normalized = img_resized.astype('float32') / 255.0
+
+    # Prepare for LSTM model input: (1, timesteps, input_dim)
+    img_input = np.expand_dims(img_normalized, axis=0)
+
+    # Make prediction
+    prediction = model.predict(img_input)
+    predicted_class = np.argmax(prediction)
+    confidence = prediction[0][predicted_class] * 100
+
+    # Display results
+    plt.figure(figsize=(3, 3))
+    plt.imshow(img_normalized, cmap='gray')
+    plt.title(f"Predicted: {predicted_class} ({confidence:.1f}%)")
+    plt.axis('off')
+    plt.show()
+else:
+    print("No file uploaded.")
